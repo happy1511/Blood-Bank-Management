@@ -113,11 +113,22 @@ public class BloodBank {
     }
 
     public static void checkWaitingBloodRecords() {
-        System.out.println("checkWaitingBloodRecords");
+        FileService.unApprovedBlood();
     }
 
     public static void approveBlood() {
-        System.out.println("Approve Blood");
+        int unApprovedBloodCount = FileService.unApprovedBlood();
+        if (unApprovedBloodCount != 0) {
+            try {
+                System.out.println("Approve Blood");
+                System.out.println("Enter the Blood id to approve: ");
+                int bloodId = scanner.nextInt();
+                scanner.nextLine();
+                FileService.approveBlood(bloodId);
+            } catch (Exception e) {
+                System.out.println("Error: " + e.getMessage());
+            }
+        }
     }
 
     public static void approveAdmin() {
@@ -143,7 +154,7 @@ public class BloodBank {
             FileService.addBlood(blood);
             User user = authService.getUser();
             System.out.println(user);
-            FileService.addRecord(blood, user);
+            FileService.addRecord(blood, user, "donated");
             System.out.println("Blood added successfully");
         } catch (Exception e) {
             System.out.println("Error: " + e.getMessage());
@@ -160,6 +171,40 @@ public class BloodBank {
     }
 
     public static void requestBlood() {
+        Blood blood = new Blood();
         System.out.println("Request Blood");
+        blood.takeInput(scanner);
+        checkBlood(blood);
+    }
+
+    public static void checkBlood(Blood blood) {
+        int availableQ = FileService.checkBloodQuantity(blood, 20);
+        if (availableQ < blood.quantity) {
+            System.out.println("we have no enough blood. Please wait for some time.");
+        } else {
+            User user = authService.getUser();
+            if (availableQ <= 20) {
+                System.out.println("we have less blood,do you want blood urgently? (yes/no):(1/0)");
+                int choice = scanner.nextInt();
+
+                switch (choice) {
+                    case 1:
+                        FileService.giveBloodToUser(user, blood);
+                        FileService.addRecord(blood, user, "gave");
+                        System.out.println("Blood given successfully");
+                        break;
+                    case 0:
+                        FileService.addBloodWaiting(blood, user);
+                        System.out.println("You were added you to the waiting List.");
+                        break;
+                    default:
+                        break;
+                }
+            } else {
+                FileService.giveBloodToUser(user, blood);
+                FileService.addRecord(blood, user, "gave");
+                System.out.println("Blood given successfully");
+            }
+        }
     }
 }

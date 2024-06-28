@@ -18,7 +18,7 @@ public class FileService {
     private static String ADMIN_FILE = "admins.txt";
     private static String BLOOD_FILE = "blood.txt";
     private static String RECORD_FILE = "records.txt";
-    private static File BLOOD_WAITING_FILE = new File("blood.txt");
+    private static String BLOOD_WAITING_FILE = "waiting.txt";
 
     public static void writeIntoFile(File file, String data, boolean isOverWrite) {
         try {
@@ -190,23 +190,10 @@ public class FileService {
         }
     }
 
-    public static void addBloodWaiting(Blood blood) {
-        writeIntoFile(BLOOD_WAITING_FILE, blood + "\n", false);
-    }
-
-    public static void aproveBlood() {
+    public static void addBloodWaiting(Blood blood, User user) {
         try {
-            if (BLOOD_WAITING_FILE.exists()) {
-                BufferedReader fileReader = new BufferedReader(new FileReader(BLOOD_WAITING_FILE));
-                String line;
-                while ((line = fileReader.readLine()) != null) {
-                    addBlood(line);
-                }
-                fileReader.close();
-                BLOOD_WAITING_FILE.delete();
-            }
-        } catch (IOException e) {
-            System.out.println("Error: " + e.getMessage());
+            File blood_waiting = new File(BLOOD_WAITING_FILE);
+            writeIntoFile(blood_waiting, user.getRecordString() + "," + blood + "\n", false);
         } catch (Exception e) {
             System.out.println("Error: " + e.getMessage());
         }
@@ -319,13 +306,13 @@ public class FileService {
         }
     }
 
-    public static void addRecord(Blood blood, User user) {
+    public static void addRecord(Blood blood, User user, String action) {
         try {
             File recordFile = new File(RECORD_FILE);
             if (!recordFile.exists()) {
                 recordFile.createNewFile();
             }
-            writeIntoFile(recordFile, user.getRecordString() + "," + blood.toString() + "\n", false);
+            writeIntoFile(recordFile, user.getRecordString() + "," + blood.toString() + "," + action + "\n", false);
         } catch (Exception e) {
             System.out.println("Error: " + e.getMessage());
         }
@@ -395,6 +382,119 @@ public class FileService {
             }
         } catch (Exception e) {
             System.out.println("Error: " + e.getMessage());
+        }
+    }
+
+    public static int checkBloodQuantity(Blood blood, int quantity) {
+        try {
+            File Blood_file = new File(BLOOD_FILE);
+            if (Blood_file.exists()) {
+                BufferedReader fileReader = new BufferedReader(new FileReader(Blood_file));
+                String line;
+                while ((line = fileReader.readLine()) != null) {
+                    String[] bloodDetails = line.split(",");
+                    if (bloodDetails[1].equals(blood.type)) {
+                        return Integer.parseInt(bloodDetails[2]);
+                    }
+                }
+                fileReader.close();
+            } else {
+                return 0;
+            }
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+            return 0;
+        }
+        return 0;
+    }
+
+    public static void giveBloodToUser(User user, Blood blood) {
+        try {
+            File Blood_file = new File(BLOOD_FILE);
+            if (Blood_file.exists()) {
+                BufferedReader fileReader = new BufferedReader(new FileReader(Blood_file));
+                String line;
+                String data = "";
+                while ((line = fileReader.readLine()) != null) {
+                    String[] bloodInfo = line.split(",");
+                    if (bloodInfo[1].equals(blood.type)) {
+                        int quantity = Integer.parseInt(bloodInfo[2]) - blood.quantity;
+                        String newdata = bloodInfo[0] + "," + bloodInfo[1] + "," + quantity + "\n";
+                        data += newdata;
+                    } else {
+                        data += line + "\n";
+                    }
+                }
+                writeIntoFile(Blood_file, data, true);
+                fileReader.close();
+            }
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
+    public static int unApprovedBlood() {
+        try {
+            File Admin_file = new File(BLOOD_WAITING_FILE);
+
+            if (Admin_file.exists()) {
+                BufferedReader fileReader = new BufferedReader(new FileReader(Admin_file));
+                String line;
+                int count = 0;
+                while ((line = fileReader.readLine()) != null) {
+                    String[] adminCredentials = line.split(",");
+                    System.out.println(count + ": " + adminCredentials[3] + ", " + adminCredentials[5] + ", "
+                            + adminCredentials[6]);
+                    count++;
+                }
+                if (count == 0) {
+                    System.out.println("No waiting blood");
+                }
+                fileReader.close();
+                return count;
+            } else {
+                System.out.println("No waiting blood");
+                return 0;
+            }
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    public static void approveBlood(int bloodId) {
+        try {
+            File Waiting_file = new File(BLOOD_WAITING_FILE);
+            if (Waiting_file.exists()) {
+                BufferedReader fileReader = new BufferedReader(new FileReader(Waiting_file));
+                String line;
+                String data = "";
+                int count = 0;
+                while ((line = fileReader.readLine()) != null) {
+                    String[] waitingData = line.split(",");
+                    if (count == bloodId) {
+                        User user = new User();
+                        Blood blood = new Blood();
+                        user.first_name = waitingData[0];
+                        user.last_name = waitingData[1];
+                        user.age = Integer.parseInt(waitingData[2]);
+                        user.adhaar_number = waitingData[3];
+                        user.phone_number = waitingData[4];
+                        blood.type = waitingData[5];
+                        blood.quantity = Integer.parseInt(waitingData[6]);
+                        addRecord(blood, user, "gave");
+                        giveBloodToUser(user, blood);
+                        System.out.println("Blood approved");
+                    } else {
+                        data += line + "\n";
+                    }
+                    count++;
+                }
+                writeIntoFile(Waiting_file, data, true);
+                fileReader.close();
+            }
+        } catch (Exception e) {
+            // TODO: handle exception
         }
     }
 }
